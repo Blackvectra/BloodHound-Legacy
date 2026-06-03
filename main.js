@@ -114,7 +114,7 @@ function createWindow() {
                 {
                     label: 'Open Developer Tools',
                     accelerator: 'CmdOrCtrl+Shift+I',
-                    click(item, focusedWindow) {
+                    click() {
                         mainWindow.webContents.openDevTools();
                     },
                 },

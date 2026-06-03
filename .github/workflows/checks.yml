@@ -1,0 +1,41 @@
+name: Checks
+
+# Fast PR feedback that complements the heavy multi-platform build in build.yml.
+# Runs on every pull request and on pushes to long-lived branches.
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+jobs:
+  checks:
+    name: Lint & security audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: npm
+
+      # --ignore-scripts skips Electron's binary download: lint and audit do not
+      # need it, and it keeps this job fast.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # Lints the main-process and build entry points (the maintained surface).
+      # Repo-wide linting of src/ is deferred legacy debt (see SECURITY.md /
+      # the hardening roadmap), so it is intentionally not gated here yet.
+      - name: Lint
+        run: npm run lint
+
+      # Informational: surfaces the current advisory report on every run without
+      # failing the job. Some advisories (e.g. lodash) have no upstream fix yet,
+      # so this is a visibility signal, not a hard gate. Non-breaking fixes are
+      # applied via `npm run audit:fix`.
+      - name: Security audit
+        run: npm audit
+        continue-on-error: true

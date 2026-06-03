@@ -34,6 +34,7 @@
     },
     "scripts": {
         "start": "run-s start:client",
+        "lint": "eslint main.js server.js renderer.js webpack.config.development.js webpack.config.production.js",
         "audit": "npm audit",
         "audit:fix": "npm audit fix",
         "start:server": "babel-node server.js",
