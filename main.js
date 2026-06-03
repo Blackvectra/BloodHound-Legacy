@@ -3,6 +3,7 @@ const platform = require('os').platform();
 // Module to control application life.
 const app = electron.app;
 const Menu = electron.Menu;
+const shell = electron.shell;
 
 // Module to create native browser window.
 const BrowserWindow = electron.BrowserWindow;
@@ -12,40 +13,49 @@ const BrowserWindow = electron.BrowserWindow;
 let mainWindow;
 
 function createWindow() {
-    // Create the browser window.
-    if (platform === 'darwin') {
-        mainWindow = new BrowserWindow({
-            width: 1280,
-            height: 800,
-            icon: __dirname + '/src/img/icon.png',
-            webPreferences: {
-                nodeIntegration: true,
-                enableRemoteModule: true,
-            },
-        });
-    } else if (platform === 'linux') {
-        mainWindow = new BrowserWindow({
-            width: 1280,
-            height: 800,
-            icon: __dirname + '/src/img/icon.png',
-            webPreferences: {
-                nodeIntegration: true,
-                enableRemoteModule: true,
-            },
-        });
-    } else {
-        mainWindow = new BrowserWindow({
-            width: 1280,
-            height: 800,
-            icon: __dirname + '/src/img/icon.ico',
-            webPreferences: {
-                nodeIntegration: true,
-                enableRemoteModule: true,
-            },
-        });
-    }
+    // Create the browser window. Windows uses an .ico icon; macOS/Linux use .png.
+    const icon =
+        platform === 'win32'
+            ? __dirname + '/src/img/icon.ico'
+            : __dirname + '/src/img/icon.png';
+
+    mainWindow = new BrowserWindow({
+        width: 1280,
+        height: 800,
+        icon: icon,
+        webPreferences: {
+            // NOTE: This app's renderer (src/index.js) imports electron `remote`,
+            // `fs`, and `path` directly, so it still requires Node integration.
+            // Because of that, navigation to remote content would be equivalent to
+            // remote code execution, so navigation is locked down below. Migrating
+            // to contextIsolation + a preload bridge is tracked in SECURITY.md.
+            nodeIntegration: true,
+            enableRemoteModule: true,
+        },
+    });
 
     mainWindow.loadURL(`file://${__dirname}/index.html`);
+
+    // Security: keep the renderer pinned to the bundled local app. Block any
+    // attempt to navigate to a remote origin and hand off such URLs to the
+    // user's default browser instead of loading them inside the app.
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        if (!url.startsWith('file://')) {
+            event.preventDefault();
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                shell.openExternal(url);
+            }
+        }
+    });
+
+    // Security: never let the app spawn additional renderer windows. External
+    // http(s) links are opened in the OS browser; everything else is denied.
+    mainWindow.webContents.on('new-window', (event, url) => {
+        event.preventDefault();
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            shell.openExternal(url);
+        }
+    });
 
     // Open the DevTools.
     //mainWindow.webContents.openDevTools()
